@@ -1,10 +1,9 @@
-
 import discord
 from discord.ext import commands
 
 import config
 import database as db
-from utils.views import PanelView, TicketControlView
+from utils.views import PanelView, TicketControlView, TicketModeView
 from utils.transcript import build_transcript_html
 
 OWNER_ID = 875751530584748132
@@ -37,10 +36,7 @@ async def owner_only(interaction: discord.Interaction) -> bool:
     if interaction.response.is_done():
         await interaction.followup.send(message, ephemeral=True)
     else:
-        await interaction.response.send_message(
-            message,
-            ephemeral=True
-        )
+        await interaction.response.send_message(message, ephemeral=True)
 
     return False
 
@@ -53,11 +49,19 @@ class Tickets(commands.Cog):
     async def on_ready(self):
         self.bot.add_view(PanelView())
         self.bot.add_view(TicketControlView())
+        self.bot.add_view(TicketModeView())
         print(f"[tickets] pronto — {self.bot.user}")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if message.author.bot or not message.guild:
+            return
+
+        # Bloqueia áudio e vídeo antes mesmo de chamar a IA
+        if message.flags.voice or any(
+            a.content_type and (a.content_type.startswith("audio/") or a.content_type.startswith("video/")) 
+            for a in message.attachments
+        ):
             return
 
         ticket = await db.get_ticket_by_channel(message.channel.id)
@@ -75,6 +79,10 @@ class Tickets(commands.Cog):
             ticket["status"] == "claimed"
             or message.author.id != ticket["user_id"]
         ):
+            return
+
+        # Só chama a IA se o cliente tiver clicado no botão "Falar com a IA"
+        if ticket.get("ticket_type") != "ai":
             return
 
         ai_cog = self.bot.get_cog("AIHandler")
@@ -166,7 +174,6 @@ async def create_ticket_channel(
         )
         return
 
-    # Impede que o mesmo usuário abra vários tickets.
     for ch in guild.text_channels:
         if not ch.name.startswith("ticket-"):
             continue
@@ -184,20 +191,13 @@ async def create_ticket_channel(
             )
             return
 
-    await interaction.response.defer(
-        ephemeral=True,
-        thinking=True
-    )
+    await interaction.response.defer(ephemeral=True, thinking=True)
 
     try:
-        bot_member = guild.me or guild.get_member(
-            interaction.client.user.id
-        )
+        bot_member = guild.me or guild.get_member(interaction.client.user.id)
 
         overwrites = {
-            guild.default_role:
-                discord.PermissionOverwrite(view_channel=False),
-
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
             user: discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
@@ -207,16 +207,9 @@ async def create_ticket_channel(
             ),
         }
 
-        # Dá acesso direto ao proprietário.
         owner = guild.get_member(OWNER_ID)
-
         if owner:
             overwrites[owner] = owner_overwrite()
-        else:
-            print(
-                "[tickets] AVISO: proprietário não encontrado "
-                "na lista de membros do servidor."
-            )
 
         if bot_member:
             overwrites[bot_member] = discord.PermissionOverwrite(
@@ -229,7 +222,6 @@ async def create_ticket_channel(
                 embed_links=True
             )
 
-        # Mantém acesso aos cargos administradores do servidor.
         for role in guild.roles:
             if role.permissions.administrator:
                 overwrites[role] = discord.PermissionOverwrite(
@@ -241,34 +233,23 @@ async def create_ticket_channel(
                 )
 
         staff_role_id = getattr(config, "STAFF_ROLE_ID", None)
-
         if staff_role_id:
             staff_role = guild.get_role(int(staff_role_id))
-
             if staff_role:
-                overwrites[staff_role] = (
-                    discord.PermissionOverwrite(
-                        view_channel=True,
-                        send_messages=True,
-                        read_message_history=True,
-                        attach_files=True,
-                        embed_links=True
-                    )
+                overwrites[staff_role] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    attach_files=True,
+                    embed_links=True
                 )
 
         category_ch = None
         category_id = getattr(config, "CATEGORY_ID", None)
-
         if category_id:
             fetched = guild.get_channel(int(category_id))
-
             if isinstance(fetched, discord.CategoryChannel):
                 category_ch = fetched
-            else:
-                print(
-                    f"[tickets] CATEGORY_ID {category_id} "
-                    "não é uma categoria válida."
-                )
 
         safe_name = "".join(
             c for c in user.name.lower()
@@ -284,34 +265,23 @@ async def create_ticket_channel(
         )
 
     except Exception as exc:
-        print(
-            f"[tickets] ERRO ao criar canal: "
-            f"{type(exc).__name__}: {exc}"
-        )
-
+        print(f"[tickets] ERRO ao criar canal: {type(exc).__name__}: {exc}")
         await interaction.followup.send(
-            "❌ Não consegui criar o ticket. "
-            "Verifique as permissões do bot.",
+            "❌ Não consegui criar o ticket. Verifique as permissões do bot.",
             ephemeral=True
         )
         return
 
-    ticket_id = await db.create_ticket(
-        channel.id,
-        user.id,
-        category
-    )
+    ticket_id = await db.create_ticket(channel.id, user.id, category)
 
     embed = discord.Embed(
         title=f"🎫・ATENDIMENTO #{ticket_id}",
         description=(
             f"Olá, {user.mention}! Seu atendimento foi criado.\n\n"
             "**Como podemos ajudar?**\n"
-            "Descreva sua situação em uma mensagem. "
-            "O assistente virtual poderá ajudar.\n\n"
+            "Descreva sua situação em uma mensagem.\n\n"
             "🔒 **Canal privado**\n"
-            "Somente você, o responsável autorizado e os "
-            "cargos configurados podem visualizar este canal."
+            "Somente você, o responsável autorizado e os cargos configurados podem visualizar este canal."
         ),
         color=RED,
         timestamp=discord.utils.utcnow()
@@ -319,27 +289,12 @@ async def create_ticket_channel(
 
     embed.set_author(
         name="QZZ Community • Suporte",
-        icon_url=(
-            guild.icon.url if guild.icon else
-            interaction.client.user.display_avatar.url
-        )
+        icon_url=(guild.icon.url if guild.icon else interaction.client.user.display_avatar.url)
     )
 
-    embed.add_field(
-        name="👤 Aberto por",
-        value=user.mention,
-        inline=True
-    )
-    embed.add_field(
-        name="📂 Categoria",
-        value=category,
-        inline=True
-    )
-    embed.add_field(
-        name="📌 Status",
-        value="🟢 Em aberto",
-        inline=True
-    )
+    embed.add_field(name="👤 Aberto por", value=user.mention, inline=True)
+    embed.add_field(name="📂 Categoria", value=category, inline=True)
+    embed.add_field(name="📌 Status", value="🟢 Em aberto", inline=True)
 
     embed.set_image(url=BRAND_IMAGE)
     embed.set_footer(
@@ -347,9 +302,12 @@ async def create_ticket_channel(
         icon_url=interaction.client.user.display_avatar.url
     )
 
+    await channel.send(embed=embed, view=TicketControlView())
+
+    # Pergunta inicial (IA ou Humano)
     await channel.send(
-        embed=embed,
-        view=TicketControlView()
+        "⚠️ **Antes de começar:**\nSeu atendimento necessita de uma staff ou quer tentar conversar com nosso atendimento de IA 24h?",
+        view=TicketModeView()
     )
 
     await interaction.followup.send(
@@ -362,9 +320,7 @@ async def handle_claim(interaction: discord.Interaction):
     if not await owner_only(interaction):
         return
 
-    ticket = await db.get_ticket_by_channel(
-        interaction.channel.id
-    )
+    ticket = await db.get_ticket_by_channel(interaction.channel.id)
 
     if not ticket or ticket["status"] == "closed":
         await interaction.response.send_message(
@@ -380,10 +336,7 @@ async def handle_claim(interaction: discord.Interaction):
         )
         return
 
-    await db.claim_ticket(
-        interaction.channel.id,
-        interaction.user.id
-    )
+    await db.claim_ticket(interaction.channel.id, interaction.user.id)
 
     embed = discord.Embed(
         title="🙋 Atendimento assumido",
@@ -402,9 +355,7 @@ async def handle_close(interaction: discord.Interaction):
     if not await owner_only(interaction):
         return
 
-    ticket = await db.get_ticket_by_channel(
-        interaction.channel.id
-    )
+    ticket = await db.get_ticket_by_channel(interaction.channel.id)
 
     if not ticket:
         await interaction.response.send_message(
@@ -429,11 +380,7 @@ async def handle_close(interaction: discord.Interaction):
 
     messages = await db.get_all_messages(ticket["id"])
 
-    buf = build_transcript_html(
-        ticket,
-        messages,
-        interaction.guild.name
-    )
+    buf = build_transcript_html(ticket, messages, interaction.guild.name)
 
     log_channel_id = getattr(config, "LOG_CHANNEL_ID", None)
     log_ch = (
@@ -448,34 +395,15 @@ async def handle_close(interaction: discord.Interaction):
             color=RED,
             timestamp=discord.utils.utcnow()
         )
-
-        log_embed.add_field(
-            name="👤 Usuário",
-            value=f"<@{ticket['user_id']}>",
-            inline=True
-        )
-        log_embed.add_field(
-            name="📂 Categoria",
-            value=ticket["category"],
-            inline=True
-        )
-        log_embed.add_field(
-            name="🛡️ Fechado por",
-            value=interaction.user.mention,
-            inline=True
-        )
+        log_embed.add_field(name="👤 Usuário", value=f"<@{ticket['user_id']}>", inline=True)
+        log_embed.add_field(name="📂 Categoria", value=ticket["category"], inline=True)
+        log_embed.add_field(name="🛡️ Fechado por", value=interaction.user.mention, inline=True)
 
         await log_ch.send(
             embed=log_embed,
-            file=discord.File(
-                buf,
-                filename=f"ticket-{ticket['id']}.html"
-            )
+            file=discord.File(buf, filename=f"ticket-{ticket['id']}.html")
         )
 
     await interaction.channel.delete(
-        reason=(
-            f"Ticket #{ticket['id']} fechado por "
-            f"{interaction.user} ({interaction.user.id})"
-        )
+        reason=f"Ticket #{ticket['id']} fechado por {interaction.user} ({interaction.user.id})"
     )
