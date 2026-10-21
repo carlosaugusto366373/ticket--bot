@@ -1,4 +1,3 @@
-
 import discord
 from discord import ui
 
@@ -74,3 +73,29 @@ class TicketControlView(ui.View):
     ):
         from cogs.tickets import handle_close
         await handle_close(interaction)
+
+
+class TicketModeView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(label="Falar com a IA 24h", style=discord.ButtonStyle.success, emoji="🤖", custom_id="mode_ai")
+    async def btn_ai(self, interaction: discord.Interaction, button: ui.Button):
+        import database as db
+        await db.set_ticket_type(interaction.channel.id, "ai")
+        
+        await interaction.response.edit_message(
+            content="✅ **Você escolheu falar com a IA.**\nDescreva sua dúvida por texto que eu respondo na hora.", 
+            view=None
+        )
+
+    @ui.button(label="Falar com um Humano", style=discord.ButtonStyle.primary, emoji="👨‍💻", custom_id="mode_human")
+    async def btn_human(self, interaction: discord.Interaction, button: ui.Button):
+        import database as db
+        import config
+        await db.set_ticket_type(interaction.channel.id, "human")
+        
+        await interaction.response.edit_message(
+            content=f"✅ **Você escolheu falar com um Humano.**\nAguarde, já chamei o responsável: <@{config.OWNER_ID}>", 
+            view=None
+        )
