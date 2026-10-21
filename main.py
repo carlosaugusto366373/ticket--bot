@@ -1,4 +1,3 @@
-
 import asyncio
 import http.server
 import threading
@@ -199,6 +198,7 @@ class TicketBot(commands.Bot):
 
         await self.load_extension("cogs.tickets")
         await self.load_extension("cogs.ai_handler")
+        await self.load_extension("cogs.ticket_guard") # <--- ADICIONADO AQUI
 
         guild_id = int(config.GUILD_ID)
         guild = discord.Object(id=guild_id)
