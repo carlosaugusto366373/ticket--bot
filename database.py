@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     user_id       INTEGER NOT NULL,
     category      TEXT    NOT NULL,
     status        TEXT    NOT NULL DEFAULT 'open',
+    ticket_type   TEXT    NOT NULL DEFAULT 'pending',
     claimed_by    INTEGER,
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     closed_at     TIMESTAMP
@@ -30,7 +31,13 @@ CREATE TABLE IF NOT EXISTS messages (
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
-        await db.commit()
+        
+        # Migração segura: adiciona a coluna se o banco já existia antes
+        try:
+            await db.execute("ALTER TABLE tickets ADD COLUMN ticket_type TEXT NOT NULL DEFAULT 'pending'")
+            await db.commit()
+        except aiosqlite.OperationalError:
+            pass # A coluna já existe, ignora o erro
 
 async def create_ticket(channel_id: int, user_id: int, category: str) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -48,6 +55,14 @@ async def get_ticket_by_channel(channel_id: int):
             "SELECT * FROM tickets WHERE channel_id = ?", (channel_id,)
         )
         return await cur.fetchone()
+
+async def set_ticket_type(channel_id: int, t_type: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE tickets SET ticket_type = ? WHERE channel_id = ?",
+            (t_type, channel_id),
+        )
+        await db.commit()
 
 async def claim_ticket(channel_id: int, staff_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
