@@ -16,15 +16,15 @@ Cada produto tem um **canal de compra** e um **canal/lugar de entrega** diferent
 | Auxílio Android e iOS | <#1556911847515496458> | <#1532618792847540276> |
 | Pack de Sensi | <#1510260940527108117> | você recebe o link do Drive **no privado** |
 | Gerador de Sensi | <#1542104721685221436> | <#1542104798411620483> |
-| Boneco Lento Android | <#1559529137734025226> | você recebe o link do Drive **no privado** |
-| Boneco Lento iOS | <#1559992044204597399> | você recebe o link do Drive **no privado** |
+| Boneco Lento Android | <#1559529137734025226> | **automática** — cargo + link do Drive **no privado** |
+| Boneco Lento iOS | <#1559992044204597399> | **automática** — cargo + link do Drive **no privado** |
 | Proxy Android | <#1514332751317172236> | <#1534463663556268082> |
 | Painel Android External | <#1559750104930582649> | <#1559756435535954002> |
 | Conta Guest | <#1543919406931910676> | arquivo guest chega **no privado**; tutorial de como usar no Android fica em <#1543922420396589108> |
 
 **iOS:** o único produto que funciona em iOS é o **Auxílio iOS**, vendido no mesmo canal do Auxílio Android (<#1556911847515496458>). Lá você escolhe entre **permanente** ou **30 dias**.
 
-**Boneco Lento (Android e iOS):** não possui key. O acesso é pelo **cargo do produto**, liberado após a compra. A entrega é feita **pela staff, no seu privado (DM)**, com o **link do Drive** contendo **2 métodos, ambos 100% anti ban e 100% confiáveis**. Não é download simples — siga o método conforme explicado no arquivo/mensagem recebida.
+**Boneco Lento (Android e iOS):** não possui key. A entrega é **automática**: assim que o pagamento for confirmado, o **cargo do produto** é concedido e o **link do Google Drive** com os **dois métodos de uso** chega **no seu privado (DM)**. Não é download simples — siga o método conforme explicado no arquivo recebido. Os dois métodos são **100% anti ban e 100% confiáveis**.
 
 **Diferença entre os produtos:** cada produto tem descrição detalhada nos **anúncios do próprio catálogo**. Pra saber qual serve pra você, confira o anúncio do canal de compra correspondente.
 
@@ -57,8 +57,8 @@ Cada produto tem um **canal de compra** e um **canal/lugar de entrega** diferent
 
 ### Boneco Lento — entrega e uso
 - **Não tem key.** O acesso é pelo **cargo do produto**, liberado após a compra.
-- **Após a compra:** a staff envia o **link do Drive** com o arquivo **diretamente no seu privado (DM)**.
-- **Aguarde a entrega** — o link chega no privado, não no canal.
+- **Entrega automática:** assim que o pagamento for confirmado, o **cargo do produto** é concedido e o **link do Google Drive** com os **dois métodos de uso** chega **no seu privado (DM)**.
+- **Aguarde a entrega automática** — o link chega no privado, não no canal.
 - O produto inclui **2 métodos**, ambos **100% anti ban** e **100% confiáveis**.
 - **Não é "download" simples** — siga o método conforme explicado no arquivo/mensagem recebida.
 - Qualquer dúvida extra, é só falar.
