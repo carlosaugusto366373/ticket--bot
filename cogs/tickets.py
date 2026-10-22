@@ -81,8 +81,11 @@ class Tickets(commands.Cog):
         ):
             return
 
+        # Converte o aiosqlite.Row para dict para podermos usar .get() sem erro
+        ticket_dict = dict(ticket)
+        
         # Só chama a IA se o cliente tiver clicado no botão "Falar com a IA"
-        if ticket.get("ticket_type") != "ai":
+        if ticket_dict.get("ticket_type") != "ai":
             return
 
         ai_cog = self.bot.get_cog("AIHandler")
