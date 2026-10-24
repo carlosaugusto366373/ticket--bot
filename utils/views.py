@@ -82,20 +82,32 @@ class TicketModeView(ui.View):
     @ui.button(label="Falar com a IA 24h", style=discord.ButtonStyle.success, emoji="🤖", custom_id="mode_ai")
     async def btn_ai(self, interaction: discord.Interaction, button: ui.Button):
         import database as db
+        
         await db.set_ticket_type(interaction.channel.id, "ai")
         
-        await interaction.response.edit_message(
-            content="✅ **Você escolheu falar com a IA.**\nDescreva sua dúvida por texto que eu respondo na hora.", 
-            view=None
+        embed = discord.Embed(
+            title="✅ Atendimento com IA ativado",
+            description="Você escolheu falar com o **Atendimento IA 24h**.\nEnvie sua mensagem abaixo que eu responderei na hora.",
+            color=discord.Color.green()
         )
+        embed.set_footer(text="Descreva seu problema por texto, por favor.")
+        
+        # Edita a mensagem original (tirando os botões) e manda o novo embed
+        await interaction.response.edit_message(embed=embed, view=None)
 
     @ui.button(label="Falar com um Humano", style=discord.ButtonStyle.primary, emoji="👨‍💻", custom_id="mode_human")
     async def btn_human(self, interaction: discord.Interaction, button: ui.Button):
         import database as db
         import config
+        
         await db.set_ticket_type(interaction.channel.id, "human")
         
-        await interaction.response.edit_message(
-            content=f"✅ **Você escolheu falar com um Humano.**\nAguarde, já chamei o responsável: <@{config.OWNER_ID}>", 
-            view=None
+        embed = discord.Embed(
+            title="✅ Atendimento Humano ativado",
+            description=f"Você escolheu falar com um **Humano**.\nAguarde, o responsável já foi notificado: <@{config.OWNER_ID}>",
+            color=discord.Color.blue()
         )
+        embed.set_footer(text="Aguarde a resposta da staff.")
+        
+        # Edita a mensagem original (tirando os botões) e manda o novo embed
+        await interaction.response.edit_message(embed=embed, view=None)
