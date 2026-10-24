@@ -5,6 +5,7 @@ import config
 import database as db
 
 OWNER_ID = 875751530584748132
+CANAL_COMPRAS_ID = 1541783356700631071
 
 class AdminTools(commands.Cog):
     def __init__(self, bot):
@@ -14,18 +15,54 @@ class AdminTools(commands.Cog):
         # Trava de segurança: só o dono pode usar esses comandos
         return ctx.author.id == OWNER_ID
 
+    @commands.command(name="sync")
+    async def sync_compras(self, ctx, limit: int = 500):
+        """Lê o canal de compras e salva no banco (apenas o dono)."""
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass
+
+        canal = self.bot.get_channel(CANAL_COMPRAS_ID)
+        if not canal:
+            return await ctx.send("❌ Não achei o canal de compras. Verifique o ID.", delete_after=10)
+
+        msg = await ctx.send(f"🔄 Lendo as últimas {limit} mensagens do canal de compras...")
+
+        # Limpa as compras antigas pra não duplicar no banco
+        async with db.aiosqlite.connect(db.DB_PATH) as conn:
+            await conn.execute("DELETE FROM purchases")
+            await conn.commit()
+
+        count = 0
+        async for message in canal.history(limit=limit):
+            if message.author.bot:
+                continue
+            
+            # Tenta achar menção de usuário na mensagem
+            if message.mentions:
+                user = message.mentions[0]
+                # Pega o texto da mensagem, limpa a menção e pega o resto como nome do produto
+                texto_limpo = message.content.replace(f"<@{user.id}>", "").replace(f"<@!{user.id}>", "").strip()
+                
+                # Se sobrou texto, salva como produto
+                if texto_limpo:
+                    await db.add_purchase(user.id, texto_limpo[:100])
+                    count += 1
+
+        await msg.edit(content=f"✅ Sincronização concluída! **{count} compras** registradas no banco.")
+
     @commands.command(name="status")
     async def status(self, ctx, member: discord.Member):
-        """Puxa os cargos e o histórico de tickets do cliente."""
+        """Puxa os cargos, histórico de tickets e compras do cliente."""
         try:
-            await ctx.message.delete() # Apaga o comando pra ficar limpo no ticket
+            await ctx.message.delete()
         except discord.Forbidden:
             pass
         
-        # Puxa tickets do banco
         tickets = await db.get_user_tickets(member.id)
+        purchases = await db.get_user_purchases(member.id)
         
-        # Puxa cargos (ignorando o cargo padrão @everyone)
         roles = [r.mention for r in member.roles if r.name != "@everyone"]
         roles_str = ", ".join(roles) if roles else "Nenhum cargo"
 
@@ -38,28 +75,25 @@ class AdminTools(commands.Cog):
         embed.add_field(name="🆔 ID", value=f"`{member.id}`", inline=False)
         embed.add_field(name="🛡️ Cargos", value=roles_str, inline=False)
         
-        if not tickets:
-            embed.add_field(name="📦 Compras / Tickets", value="Nenhum ticket ou compra registrada.", inline=False)
+        # Adiciona as compras puxadas do canal
+        if not purchases:
+            embed.add_field(name="🛒 Compras Registradas", value="Nenhuma compra registrada no canal.", inline=False)
         else:
-            compras = []
-            for t in tickets[:5]: # Mostra os 5 últimos
-                data = t["created_at"][:10] if t["created_at"] else "Sem data"
+            compras_str = []
+            for p in purchases[:5]: # 5 últimas
+                data = p["purchase_date"][:10] if p["purchase_date"] else ""
+                compras_str.append(f"• **{p['product_name']}** ({data})")
+            embed.add_field(name="🛒 Compras Registradas", value="\n".join(compras_str), inline=False)
+
+        if not tickets:
+            embed.add_field(name="📦 Tickets", value="Nenhum ticket aberto.", inline=False)
+        else:
+            compras_tickets = []
+            for t in tickets[:3]:
+                data = t["created_at"][:10] if t["created_at"] else ""
                 status_icone = "🟢" if t["status"] == "open" else "🔴"
-                
-                # Converte a Row para dict para pegar o ticket_type com segurança
-                t_dict = dict(t)
-                tipo_raw = t_dict.get("ticket_type")
-                
-                if tipo_raw == "ai":
-                    tipo = "IA"
-                elif tipo_raw == "human":
-                    tipo = "Humano"
-                else:
-                    tipo = "Pendente"
-                    
-                compras.append(f"{status_icone} `#{t['id']}` - {t['category']} ({tipo}) - {data}")
-            
-            embed.add_field(name="📦 Últimos Tickets / Compras", value="\n".join(compras), inline=False)
+                compras_tickets.append(f"{status_icone} `#{t['id']}` - {t['category']} - {data}")
+            embed.add_field(name="📦 Últimos Tickets", value="\n".join(compras_tickets), inline=False)
 
         await ctx.send(embed=embed)
 
@@ -90,16 +124,20 @@ class AdminTools(commands.Cog):
         
         msg = await ctx.send(f"🐉 **Dragon analisando o histórico de {member.mention}...**")
 
-        # Puxa os dados do banco
         tickets = await db.get_user_tickets(member.id)
         msgs = await db.get_user_messages(member.id, limit=30)
+        purchases = await db.get_user_purchases(member.id)
         
         roles = [r.name for r in member.roles if r.name != "@everyone"]
         
-        # Monta o contexto pra IA analisar
-        contexto = f"O usuário se chama {member.name} e possui os cargos: {', '.join(roles) if roles else 'Nenhum'}.\n\n"
-        
-        contexto += "--- HISTÓRICO DE TICKETS ---\n"
+        contexto = f"O usuário se chama {member.name} e possui os cargos: {', '.join(roles) if roles else 'Nenhum'}.\n"
+        if purchases:
+            prods = [p['product_name'] for p in purchases]
+            contexto += f"Compras registradas dele: {', '.join(prods)}.\n"
+        else:
+            contexto += "Nenhuma compra registrada no sistema.\n"
+            
+        contexto += "\n--- HISTÓRICO DE TICKETS ---\n"
         if not tickets:
             contexto += "O usuário nunca abriu um ticket.\n"
         else:
@@ -111,10 +149,9 @@ class AdminTools(commands.Cog):
             contexto += "Nenhuma mensagem registrada.\n"
         else:
             for m in reversed(msgs):
-                data_msg = m['created_at'][:16] if m['created_at'] else "Sem data"
+                data_msg = m['created_at'][:16] if m['created_at'] else ""
                 contexto += f"[{data_msg}] {m['content']}\n"
 
-        # Prompt pra IA analisar
         prompt = (
             "Você é o 'Dragon', um auditor frio e analítico de um servidor de vendas. "
             "Sua função é analisar o histórico de um cliente e verificar se ele está tentando aplicar um golpe (ex: dizendo que comprou algo mas não recebeu, quando não há registro), "
@@ -123,11 +160,10 @@ class AdminTools(commands.Cog):
             "Com base nisso, faça um veredito em até 2 parágrafos. "
             "Diga se o cliente é CONFIAVEL, SUSPEITO ou MENTIROSO/DESRESPEITOSO. "
             "Explique o motivo usando as evidências acima. "
-            "Se o cliente estiver reclamando de compra, verifique se os cargos e o histórico de tickets batem com a reclamação dele."
+            "Se o cliente estiver reclamando de compra, verifique se os cargos e o histórico de compras batem com a reclamação dele."
         )
 
         try:
-            # Chama a API da Groq diretamente
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
                     f"{config.GROQ_BASE_URL}/chat/completions",
@@ -144,9 +180,8 @@ class AdminTools(commands.Cog):
                     timeout=30.0
                 )
                 
-                # Verifica se a API retornou erro
                 if resp.status_code != 200:
-                    raise Exception(f"Erro na API da Groq: HTTP {resp.status_code} - {resp.text}")
+                    raise Exception(f"Erro na API: HTTP {resp.status_code}")
                     
                 data = resp.json()
                 analise = data["choices"][0]["message"]["content"]
