@@ -52,6 +52,25 @@ class AdminTools(commands.Cog):
 
         await msg.edit(content=f"✅ Sincronização concluída! **{count} compras** registradas no banco.")
 
+    @commands.command(name="compras")
+    async def ver_compras(self, ctx):
+        """Mostra quantas compras foram registradas no banco."""
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass
+
+        total = await db.get_total_purchases()
+        
+        embed = discord.Embed(
+            title="🛒 Total de Compras Registradas",
+            description=f"O bot tem **{total}** compras sincronizadas no banco de dados.",
+            color=discord.Color.green()
+        )
+        embed.set_footer(text="Use !sync para atualizar a lista se necessário.")
+        
+        await ctx.send(embed=embed)
+
     @commands.command(name="status")
     async def status(self, ctx, member: discord.Member):
         """Puxa os cargos, histórico de tickets e compras do cliente."""
