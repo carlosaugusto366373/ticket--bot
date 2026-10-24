@@ -199,7 +199,8 @@ class TicketBot(commands.Bot):
         await self.load_extension("cogs.tickets")
         await self.load_extension("cogs.ai_handler")
         await self.load_extension("cogs.ticket_guard")
-        await self.load_extension("cogs.admin_tools") # <--- ADICIONADO AQUI
+        await self.load_extension("cogs.admin_tools")
+        await self.load_extension("cogs.security") # <--- ADICIONADO AQUI
 
         guild_id = int(config.GUILD_ID)
         guild = discord.Object(id=guild_id)
