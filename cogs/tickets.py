@@ -307,11 +307,27 @@ async def create_ticket_channel(
 
     await channel.send(embed=embed, view=TicketControlView())
 
-    # Pergunta inicial (IA ou Humano)
-    await channel.send(
-        "⚠️ **Antes de começar:**\nSeu atendimento necessita de uma staff ou quer tentar conversar com nosso atendimento de IA 24h?",
-        view=TicketModeView()
+    # --- NOVO: EMBED BONITO PARA ESCOLHA DE ATENDIMENTO ---
+    mode_embed = discord.Embed(
+        title="🤖 Como você prefere ser atendido?",
+        description=(
+            "Escolha uma das opções abaixo para prosseguir com o seu atendimento:\n\n"
+            "🟢 **Atendimento IA 24h**\n"
+            "・Respostas imediatas para dúvidas frequentes.\n"
+            "・Disponível a qualquer hora do dia.\n\n"
+            "🔵 **Atendimento Humano**\n"
+            "・Fale diretamente com um membro da equipe.\n"
+            "・Pode haver um pequeno tempo de espera."
+        ),
+        color=RED
     )
+    mode_embed.set_footer(
+        text="Selecione uma opção abaixo para começar.", 
+        icon_url=interaction.client.user.display_avatar.url
+    )
+
+    await channel.send(embed=mode_embed, view=TicketModeView())
+    # -------------------------------------------------------
 
     await interaction.followup.send(
         f"✅ Seu ticket foi aberto: {channel.mention}",
