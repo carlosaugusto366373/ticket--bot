@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ticket_id) REFERENCES tickets(id)
 );
+
+CREATE TABLE IF NOT EXISTS purchases (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL,
+    product_name  TEXT    NOT NULL,
+    purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 async def init_db():
@@ -110,7 +117,7 @@ async def get_all_messages(ticket_id: int):
         )
         return await cur.fetchall()
 
-# ─── NOVAS FUNÇÕES PARA O ADMIN TOOLS ────────────────────────
+# ─── FUNÇÕES PARA O ADMIN TOOLS ──────────────────────────────
 
 async def get_user_tickets(user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -127,5 +134,22 @@ async def get_user_messages(user_id: int, limit: int = 50):
         cur = await db.execute(
             "SELECT * FROM messages WHERE author_id = ? ORDER BY id DESC LIMIT ?", 
             (user_id, limit)
+        )
+        return await cur.fetchall()
+
+async def add_purchase(user_id: int, product_name: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO purchases (user_id, product_name) VALUES (?, ?)",
+            (user_id, product_name)
+        )
+        await db.commit()
+
+async def get_user_purchases(user_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT * FROM purchases WHERE user_id = ? ORDER BY id DESC",
+            (user_id,)
         )
         return await cur.fetchall()
