@@ -153,3 +153,9 @@ async def get_user_purchases(user_id: int):
             (user_id,)
         )
         return await cur.fetchall()
+
+async def get_total_purchases() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT COUNT(*) FROM purchases")
+        row = await cur.fetchone()
+        return row[0] if row else 0
