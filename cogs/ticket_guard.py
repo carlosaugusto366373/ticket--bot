@@ -3,6 +3,9 @@ import discord
 from discord.ext import commands
 from config import CATEGORY_ID
 
+# ID do dono (você). Áudios desse ID são permitidos.
+OWNER_ID = 875751530584748132
+
 BLOCKED_EXTENSIONS = {
     ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".opus",
     ".mp4", ".mov", ".webm", ".mkv", ".avi",
@@ -38,6 +41,11 @@ class TicketAudioGuard(commands.Cog):
         # Se não for ticket, ignora
         if not self._is_ticket(message.channel):
             return
+
+        # --- NOVO: SE FOR O DONO, NÃO BLOQUEIA ---
+        if message.author.id == OWNER_ID:
+            return
+        # -----------------------------------------
 
         # Verifica se é áudio (mensagem de voz do Discord ou anexo de áudio/vídeo)
         is_voice = message.flags and message.flags.voice
