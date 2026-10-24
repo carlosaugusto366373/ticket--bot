@@ -109,3 +109,23 @@ async def get_all_messages(ticket_id: int):
             (ticket_id,),
         )
         return await cur.fetchall()
+
+# ─── NOVAS FUNÇÕES PARA O ADMIN TOOLS ────────────────────────
+
+async def get_user_tickets(user_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT * FROM tickets WHERE user_id = ? ORDER BY id DESC", 
+            (user_id,)
+        )
+        return await cur.fetchall()
+
+async def get_user_messages(user_id: int, limit: int = 50):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT * FROM messages WHERE author_id = ? ORDER BY id DESC LIMIT ?", 
+            (user_id, limit)
+        )
+        return await cur.fetchall()
